@@ -26,6 +26,8 @@
     #error "Use #include <lsp-plug.in/plug-fw/ui/ui.h>"
 #endif /* LSP_PLUG_IN_PLUG_FW_UI_IMPL_H_ */
 
+#include <unordered_map>
+
 #include <lsp-plug.in/plug-fw/version.h>
 #include <lsp-plug.in/resource/PrefixLoader.h>
 #include <lsp-plug.in/resource/Environment.h>
@@ -121,6 +123,7 @@ namespace lsp
                 core::preset_data_t             vPresetData[2];     // Preset data
                 LSPString                       sVisualSchema;      // Current visual schema
 
+                std::unordered_map<const ui::IPort *, float> vPresetValues[2];
                 lltl::parray<ui::IPort>         vPorts;             // All possible ports
                 lltl::hash_index<const char, ui::IPort> vPluginPorts; // Port mapping
                 lltl::hash_index<const char, ui::IPort> vCustomPorts; // Port mapping
@@ -566,6 +569,7 @@ namespace lsp
                  * @return active preset
                  */
                 const preset_t                 *active_preset() const;
+                bool                            preset_value(const ui::IPort *port, float &value) const;
 
                 /**
                  * Check that active preset is dirty

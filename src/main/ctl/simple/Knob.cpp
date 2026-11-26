@@ -112,6 +112,7 @@ namespace lsp
 
                 // Bind slots
                 knob->slots()->bind(tk::SLOT_CHANGE, slot_change, this);
+                knob->slots()->bind(tk::SLOT_MOUSE_CLICK, slot_click, this);
                 knob->slots()->bind(tk::SLOT_MOUSE_DBL_CLICK, slot_dbl_click, this);
                 knob->slots()->bind(tk::SLOT_BEGIN_EDIT, slot_begin_edit, this);
                 knob->slots()->bind(tk::SLOT_END_EDIT, slot_end_edit, this);
@@ -502,6 +503,28 @@ namespace lsp
             ctl::Knob *self     = static_cast<ctl::Knob *>(ptr);
             if ((self != NULL) && (self->pPort != NULL))
                 self->pPort->end_edit();
+            return STATUS_OK;
+        }
+
+        status_t Knob::slot_click(tk::Widget *sender, void *ptr, void *data)
+        {
+            auto *self = static_cast<ctl::Knob *>(ptr);
+            const auto *event = static_cast<const ws::event_t *>(data);
+            auto *knob = tk::widget_cast<tk::Knob>(sender);
+            if ((event == NULL) || (event->nCode != ws::MCB_RIGHT) ||
+                (knob == NULL) || (!knob->editable()->get()))
+                return STATUS_OK;
+
+            ui::IPort *port = self->pPort;
+            float value;
+            if ((port != NULL) && self->pWrapper->preset_value(port, value) &&
+                (value != port->value()))
+            {
+                port->begin_edit();
+                port->set_value(value);
+                port->notify_all(ui::PORT_USER_EDIT);
+                port->end_edit();
+            }
             return STATUS_OK;
         }
 

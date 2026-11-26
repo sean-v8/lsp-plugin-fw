@@ -1542,6 +1542,9 @@ namespace lsp
             };
 
             lltl::ptrset<ui::IPort> visited;
+            auto &baseline = vPresetValues[nActivePresetData];
+            baseline.clear();
+            const bool preset = flags & (IMPORT_FLAG_PRESET | IMPORT_FLAG_PATCH);
 
             while ((res = parser->next(&param)) == STATUS_OK)
             {
@@ -1644,7 +1647,11 @@ namespace lsp
                     if (p != NULL)
                     {
                         if (set_port_value(p, &param, port_flags, basedir))
+                        {
                             p->notify_all(ui::PORT_NONE);
+                            if (preset && meta::is_control_port(p->metadata()))
+                                baseline[p] = p->value();
+                        }
                         visited.put(p);
                     }
                 }
@@ -1660,10 +1667,14 @@ namespace lsp
                     {
                         p->set_default();
                         p->notify_all(ui::PORT_NONE);
+                        if (preset && meta::is_control_port(p->metadata()))
+                            baseline[p] = p->value();
                     }
                 }
             }
 
+            if (res != STATUS_EOF)
+                baseline.clear();
             return (res == STATUS_EOF) ? STATUS_OK : res;
         }
 
@@ -2458,6 +2469,16 @@ namespace lsp
             return res;
         }
 
+        bool IWrapper::preset_value(const ui::IPort *port, float &value) const
+        {
+            const auto &baseline = vPresetValues[nActivePresetData];
+            const auto found = baseline.find(port);
+            if (found == baseline.end())
+                return false;
+            value = found->second;
+            return true;
+        }
+
         const preset_t *IWrapper::active_preset() const
         {
             return (nActivePreset >= 0) ? vPresets.get(nActivePreset) : NULL;
@@ -2996,6 +3017,8 @@ namespace lsp
             if ((flags == nFlags) && (active == nActivePreset) && (state->tab == uint32_t(enPresetTab)))
                 return;
 
+            if (active != nActivePreset)
+                vPresetValues[nActivePresetData].clear();
             nFlags          = flags;
             nActivePreset   = active;
             enPresetTab     = preset_tab_t(lsp_min(state->tab, uint32_t(ui::PRESET_TAB_TOTAL - 1)));
@@ -3012,7 +3035,10 @@ namespace lsp
         status_t IWrapper::copy_preset_data()
         {
             core::preset_data_t *inactive   = &vPresetData[(nActivePresetData + 1) % 2];
-            return serialize_state(inactive);
+            status_t res = serialize_state(inactive);
+            if (res == STATUS_OK)
+                vPresetValues[(nActivePresetData + 1) % 2] = vPresetValues[nActivePresetData];
+            return res;
         }
 
         status_t IWrapper::switch_preset_data()
